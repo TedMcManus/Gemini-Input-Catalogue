@@ -407,6 +407,7 @@ end
 
 
 %% Input Functions
+% Growth-phase Unipolar Double Discrete Arc (GUDDA)
 function [Qit,E0it,J,U,V] = GUDDA_map(mlon,mlat,it,mlonmean,mlatmean,x2d,y2d,pars)
 par = pars.gudda;
 mlon = mlon - par.driftE*x2d*it;
@@ -449,7 +450,6 @@ V = F.*dydx./sqrt(1+dydx.^2); % ~northward flow
         y = exp(-(x-pos).^2./(0.36*(fwhm).^2));
     end
 end
-
 % Growth-phase Multipolar Double Discrete Arc (GMDDA)
 function [Qit,E0it,J,U,V] = GMDDA_map(mlon,mlat,it,mlonmean,mlatmean,x2d,y2d,pars)
 par = pars.gmdda;
@@ -482,74 +482,6 @@ U = F./sqrt(1+dydx.^2);
 V = F.*dydx./sqrt(1+dydx.^2);
     function [y] = gaussian(x,pos,fwhm)
         y = exp(-(x-pos).^2./(0.36*(fwhm)^2));
-    end
-end
-function [Qit,E0it,J,U,V] = GUDDA_map_new(mlon,mlat,it,mlonmean,mlatmean,x2d,y2d,pars)
-par = pars.gudda;
-mlon = mlon - par.driftE*x2d*it;
-mlat = mlat - par.driftN*y2d*it;
-offset = 0*(3*par.sheetwidth/4-par.arcsep/2)*y2d; % move southern arc to equatorward edges of current sheets
-Jpk = 1e3*par.Kpk/par.sheetwidth; % convert line integrated current to peak current density
-mlatctr = mlatmean+(par.spanNS/2).*tanh((mlon-mlonmean)/par.mlonsig); % arc contour definition
-dmlatctrdmlon = (par.spanNS/2).*sech((mlon-mlonmean)/par.mlonsig).^2/par.mlonsig;% used to define tangent/normal to contour.
-dydx = (x2d/y2d).*dmlatctrdmlon;  % Derivative defined in physical space
-%         dydx0 = (x2d/y2d)*(par.spanNS/2)/par.mlonsig; % slope at center
-wfac = sqrt(1+dydx.^2); % width and separation factor to avoid pinching at steep curves
-%         wfac = 1; %%% CHANGE
-%         sfac = (sqrt(1+dydx0^2)-1)/dydx0;
-arcsep = par.arcsep*y2d;
-arcwidth = par.arcwidth*y2d*wfac;
-flowwidth = par.flowwidth*y2d*wfac;
-sheetwidth  = par.sheetwidth*y2d;
-Qit = (par.Qitpk + par.Qitslope*(mlon-mlonmean)).*(...
-    gaussian(mlat-mlatctr-0.25,-arcsep/2,arcwidth)...
-    +0.2*gaussian(mlat-mlatctr-0.25, arcsep/2,arcwidth*10)...
-    );%.*gaussian(mlon,mlonmean,par.mlonsig);
-E0it = par.E0itpk.*(...
-    gaussian(mlat-mlatctr-0.25,-arcsep/2,arcwidth)...
-    +gaussian(mlat-mlatctr-0.25, arcsep/2,arcwidth*10)...
-    );%.*gaussian(mlon,mlonmean,par.mlonsig);
-J = (Jpk + par.Jslope*(mlon-mlonmean)).*(...
-    tanh(50*flowwidth.*(mlat-mlatctr-(-4/3)*sheetwidth-offset))...
-    -2*tanh(50*flowwidth.*(mlat-mlatctr-(-1/2)*sheetwidth-offset))...
-    +tanh(50*flowwidth.*(mlat-mlatctr-( 1/2)*sheetwidth*2-offset))...
-    )/2;%.*gaussian(mlon,mlonmean,par.mlonsig);
-J(J>1)=J(J>1)*2.34505+Jpk/4;
-%J(J<1)=J(J<1)*2.3+Jpk/8;
-%J=J+tanh(50*flowwidth.*(mlat-mlatctr-( 1/2)*sheetwidth*2-offset))/2;
-s_j = size(J);
-for i=[1:s_j(1)]
-    for i_t = [1:s_j(3)]
-        J(i,:,i_t)=smooth(J(i,:,i_t));
-    end
-end
-jflat=J(:,:,end);
-figure(1);
-pcolor(mlon(:,:,end),mlat(:,:,end),jflat);shading flat;colorbar;
-figure(2);
-pcolor(mlon(:,:,end),mlat(:,:,end),rescale(E0it(:,:,end)));shading flat;
-disp('doing something really dumb:)');
-%J=J*1.5;
-for uselessindex=1:50
-    excess = sum(J(:));
-    numgreater = numel(J(J>0));
-    numless = numel(J(J<0));
-    J(J>0) = J(J>0)-(excess/2)/numgreater;
-    J(J<0) = J(J<0)-(excess)/numless;
-end
-sum(J(:))
-
-
-J = J.*(it>2); % Turn on current 2 seconds after precip has settled -- jvi: should this value be in some init file?
-F = (par.Fpk + 1e3*par.Jslope*(mlon-mlonmean)).*(...
-    gaussian(mlat-mlatctr,(-3/2)*sheetwidth+offset,flowwidth)... % flow magnitude
-    -gaussian(mlat-mlatctr,(-1/2)*sheetwidth+offset,flowwidth)...
-    +gaussian(mlat-mlatctr,( 1/2)*sheetwidth+offset,flowwidth)...
-    );%.*gaussian(mlon,mlonmean,par.mlonsig);
-U = F./sqrt(1+dydx.^2); % ~eastward flow
-V = F.*dydx./sqrt(1+dydx.^2); % ~northward flow
-    function [y] = gaussian(x,pos,fwhm)
-        y = exp(-(x-pos).^2./(0.36*(fwhm).^2));
     end
 end
 % Matt example: Angle
