@@ -284,7 +284,7 @@ elseif matches(arc,'maeve')
     pars.maeve.driftN = usrq('Northward drift (-120 m s^-1): ',-120);
     pars.maeve.ctr_spn = usrq('Contour North-South span (1e5 m): ',1e5);
     pars.maeve.ctr_slp = usrq('Contour central slope (0.5): ',0.5);
-    pars.maeve.bar_frc = usrq('Precip. loading bar fraction (0): ',0);
+    pars.maeve.bar_frc = usrq('Precip. loading bar fraction (1): ',1);
     pars.maeve.bar_pos = usrq('Precip. loading bar starting position (4.5e5 m): ',4.5e5);
     pars.maeve.bar_vel = usrq('Precip. loading bar velocity (-3000 m s^-1): ',-3000);
     pars.maeve.bar_gsl = usrq('Precip. loading bar gradient scale length (1e5 m): ',1e5);
