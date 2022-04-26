@@ -455,13 +455,13 @@ function [Qit,E0it,J,U,V] = MAEVE_map(x2,x3,it,pars)
     p = pars.maeve;
     x2 = x2 - p.driftE*it;
     x3 = x3 - p.driftN*it;
-    ctr = (p.ctr_spn/2)*tanh(2*p.ctr_slp*x2/p.ctr_spn);
-    dcdx = p.ctr_slp*sech(2*p.ctr_slp*x2/p.ctr_spn).^2;
-%     s = sqrt(1+dcdx.^2);
-    s = 1;
+    ctr = (p.ctr_spn/2)*tanh(2*p.ctr_slp*x2/p.ctr_spn); % arc system contour
+    dcdx = p.ctr_slp*sech(2*p.ctr_slp*x2/p.ctr_spn).^2; % contour slope
+%     s = sqrt(1+dcdx.^2); % ignore
+    s = 1; % ignore
     b = bar(x2,p.bar_pos+p.bar_vel*it,p.bar_frc,p.bar_gsl); % loading bar
     d = (2-p.dim_frc*(1-tanh(2*(it-p.dim_del)/p.dim_tim)))/2; % dimming
-    J_amp = p.K_amp/p.J_wth;
+    J_amp = p.K_amp/p.J_wth; % parallel volume current density
     Qit = (p.Q_amp_h-p.Q_amp_l)*d.*b.*...
          sheet(x3,ctr+p.Q_wth_l/2+p.Q_off_l+p.Q_off_h*p.Q_wth_l/2,p.Q_wth_h*s,p.Q_gsl_h)...
           +p.Q_amp_l*...

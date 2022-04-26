@@ -280,15 +280,17 @@ elseif matches(arc,'gudda_uneven')
     [mapQit,mapE0it,mapJ,mapU,mapV] = GUDDA_map_new(MLON,MLAT,IT,mlonmean,mlatmean,x2d,y2d,pars);
     mapJ=mapJ.*10^-6.*-1;
 elseif matches(arc,'maeve')
-    % Magnetospheric Accelerated Energetic inverted-V Electrons
     pars.maeve.driftE = usrq('Eastward drift (0 m s^-1): ',0);
     pars.maeve.driftN = usrq('Northward drift (-120 m s^-1): ',-120);
     pars.maeve.ctr_spn = usrq('Contour North-South span (1e5 m): ',1e5);
     pars.maeve.ctr_slp = usrq('Contour central slope (0.5): ',0.5);
-    pars.maeve.bar_frc = usrq('Precip. loading bar fraction (0): ',0);
+    pars.maeve.bar_frc = usrq('Precip. loading bar fraction (1): ',1);
     pars.maeve.bar_pos = usrq('Precip. loading bar starting position (4.5e5 m): ',4.5e5);
     pars.maeve.bar_vel = usrq('Precip. loading bar velocity (-3000 m s^-1): ',-3000);
     pars.maeve.bar_gsl = usrq('Precip. loading bar gradient scale length (1e5 m): ',1e5);
+    pars.maeve.dim_frc = usrq('Precip. fade in fraction (0): ',0);
+    pars.maeve.dim_tim = usrq('Precip. fade in time (100 s): ',100);
+    pars.maeve.dim_del = usrq('Precip. fade in delay (100 s): ',100);
     pars.maeve.Q_amp_h = usrq('Total energy flux peak hi (15 erg s^-1 cm^-2): ',15);
     pars.maeve.Q_amp_l = usrq('Total energy flux peak lo (3 erg s^-1 cm^-2): ',3);
     pars.maeve.Q_wth_h = usrq('Total energy flux width hi (2e4 m): ',2e4);
@@ -448,6 +450,38 @@ end
 
 
 %% Input Functions
+% Magnetospheric Accelerated Energetic inverted-V Electrons
+function [Qit,E0it,J,U,V] = MAEVE_map(x2,x3,it,pars)
+    p = pars.maeve;
+    x2 = x2 - p.driftE*it;
+    x3 = x3 - p.driftN*it;
+    ctr = (p.ctr_spn/2)*tanh(2*p.ctr_slp*x2/p.ctr_spn); % arc system contour
+    dcdx = p.ctr_slp*sech(2*p.ctr_slp*x2/p.ctr_spn).^2; % contoru slope
+%     s = sqrt(1+dcdx.^2); % ignore
+    s = 1; % ignore
+    b = bar(x2,p.bar_pos+p.bar_vel*it,p.bar_frc,p.bar_gsl); % loading bar
+    d = (2-p.dim_frc*(1-tanh(2*(it-p.dim_del)/p.dim_tim)))/2; % dimming
+    J_amp = p.K_amp/p.J_wth; % current density
+    Qit = (p.Q_amp_h-p.Q_amp_l)*d.*b.*...
+         sheet(x3,ctr+p.Q_wth_l/2+p.Q_off_l+p.Q_off_h*p.Q_wth_l/2,p.Q_wth_h*s,p.Q_gsl_h)...
+          +p.Q_amp_l*...
+         sheet(x3,ctr+p.Q_wth_l/2+p.Q_off_l,p.Q_wth_l*s,p.Q_gsl_l);
+    E0it = (p.E_amp_h-p.E_amp_l)*d.*b.*...
+         sheet(x3,ctr+p.Q_wth_l/2+p.Q_off_l+p.Q_off_h*p.Q_wth_l/2,p.E_wth_h*s,p.E_gsl_h)...
+          +p.E_amp_l*...
+         sheet(x3,ctr+p.Q_wth_l/2+p.Q_off_l,p.E_wth_l*s,p.E_gsl_l); % h and l in same pos as Q
+    J = J_amp*(...
+         sheet(x3,ctr+p.J_wth/2,p.J_wth*s,p.J_gsl)...
+        -sheet(x3,ctr-p.J_wth/2,p.J_wth*s,p.J_gsl)...
+        );
+    F = p.F_amp*(...
+         sheet(x3,ctr-p.J_wth,p.F_wth*s,p.F_gsl)...
+        -sheet(x3,ctr          ,p.F_wth*s,p.F_gsl)...
+        +sheet(x3,ctr+p.J_wth,p.F_wth*s,p.F_gsl)...
+        );
+    U = F.*(1/sqrt(1+dcdx.^2));
+    V = F.*(dcdx./sqrt(1+dcdx.^2));
+end
 % Growth-phase Unipolar Double Discrete Arc (GUDDA)
 function [Qit,E0it,J,U,V] = GUDDA_map(mlon,mlat,it,mlonmean,mlatmean,x2d,y2d,pars)
 par = pars.gudda;
@@ -541,7 +575,7 @@ U    = interp3(map.MLAT,map.MLON,map.IT,map.U   ,mlat,mlon,it);
 V    = interp3(map.MLAT,map.MLON,map.IT,map.V   ,mlat,mlon,it);
 end
 %% Other functions
-% user query function
+% user query
 function [v] = usrq(q,defv)
 vi = input(q);
 if isempty(vi)
@@ -550,13 +584,17 @@ else
     v = vi;
 end
 end
-% Gaussian function
-function [y] = gaussian(x,pos,fwhm)
-    y = exp(-(x-pos).^2./(0.36*(fwhm).^2));
+% Gaussian
+function [v] = gaussian(x,pos,fwhm)
+    v = exp(-(x-pos).^2./(0.36*(fwhm).^2));
 end
 % double tanh sheet
 function [v] = sheet(x3,pos,wdth,gsl)
     v = (tanh(2*(x3-pos+wdth/2)./(gsl*wdth))-tanh((x3-pos-wdth/2)./(gsl*wdth)))/2;
+end
+% loading bar
+function [v] = bar(x2,pos,frac,gsl)
+    v = (2-frac*(1-tanh(2*(x2-pos)/gsl)))/2;
 end
 
 %This is an old function that took a run and translated it at a given
